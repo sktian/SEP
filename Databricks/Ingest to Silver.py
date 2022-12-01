@@ -1,4 +1,3 @@
-# Databricks notebook source
 # importing packages
 from pyspark.sql.types import *
 from pyspark.sql.functions import explode, explode_outer, current_timestamp, lit, abs
@@ -12,7 +11,7 @@ dbutils.widgets.text("ingest_date", "2022-11-29", "insert ingest date for data")
 
 # Ingest to bronze
 
-def toBronze() {
+def toBronze():
     container_path = "/FileStore/tables"
     movieSchema = StructType([
         StructField('movie', 
@@ -85,17 +84,17 @@ def toBronze() {
     df = df.withColumn("source", lit("sep adb assignment"))
     df = df.distinct()
     df.write.mode("overwrite").option("path", "/mnt/movies/bronze").saveAsTable("bronze")
-}
 
-def toSilver(ingest_date = '2022-11-29') {
+
+def toSilver(ingest_date = '2022-11-29') :
     # quarantining data with negative runtime and saving to silver
     ingest_date = dbutils.widgets.get("ingest_date")
     df = spark.read.load("/mnt/movies/bronze").filter("status = 'new'").filter("ingestdate = '2022-11-29'")
     quarantined = df.filter("RunTime < 0")
     df = df.filter("RunTime >= 0")
-    df.write.format("delta").mode("append").option("path", "/mnt/movies/silver").saveAsTable("silver")
+    df.write.format("delta").mode("overwrite").option("path", "/mnt/movies/silver").saveAsTable("silver")
     # update bronze table
-    bronze = DeltaTable.forPath(spark, "/mnt/movies")
+    bronze = DeltaTable.forPath(spark, "/mnt/movies/bronze")
     silver = spark.read.load("/mnt/movies/silver")
     silverAugmented = silver.withColumn("status", lit('loaded'))
     update = {'bronze.status' : 'clean.status'}
@@ -116,10 +115,10 @@ def toSilver(ingest_date = '2022-11-29') {
         .whenMatchedUpdate(set = update)
         .execute()
     )
-}
 
 
-def silverUpdate() {
+
+def silverUpdate() :
     # loading quarantined data
     quarantine_df = spark.read.load("/mnt/movies/bronze").filter("status = 'quarantined'")
     quarantine_cleaned = quarantine_df.withColumn("RunTime", abs(quarantine_df.RunTime))
@@ -136,4 +135,7 @@ def silverUpdate() {
         .whenMatchedUpdate(set = update)
         .execute()
     )
-}
+
+
+
+
